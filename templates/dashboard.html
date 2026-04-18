@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | EventIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<!-- ── UPI Modal ─────────────────────────────────────────────────────── -->
+<div id="upiModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+     background:rgba(0,0,0,0.75);z-index:9999;justify-content:center;align-items:center;">
+    <div class="panel" style="background:var(--bg-card);text-align:center;padding:40px;
+         max-width:420px;border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,0.4);">
+        <h2 style="margin-bottom:8px;">Scan & Pay</h2>
+        <p style="color:var(--text-muted);font-size:13px;margin-bottom:20px;">
+            Use Google Pay or any UPI app to complete payment.
+        </p>
+        <img src="{{ url_for('static', filename='upi_qr.jpg') }}"
+             onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg'"
+             style="width:100%;max-width:240px;border-radius:12px;margin-bottom:20px;border:3px solid var(--border);">
+        <div id="upiAmountBadge" style="background:rgba(67,24,255,0.1);color:var(--primary);
+             padding:10px;border-radius:10px;font-weight:700;font-size:18px;margin-bottom:20px;"></div>
+        <button onclick="submitTicketForm()" class="btn-primary"
+                style="background:#05CD99;font-size:15px;margin-bottom:10px;">
+            <i class="fas fa-check-circle"></i> I Have Paid — Generate Ticket
+        </button>
+        <br>
+        <button onclick="closeUPI()" style="background:transparent;border:none;
+                color:var(--text-muted);cursor:pointer;text-decoration:underline;font-size:13px;margin-top:5px;">
+            Cancel Transaction
+        </button>
+    </div>
+</div>
+
+<!-- ── Sidebar ───────────────────────────────────────────────────────── -->
+<nav class="sidebar">
+    <div class="brand"><i class="fas fa-bolt" style="color:var(--primary);"></i> EventIQ</div>
+    <a href="/dashboard{{ query_param }}" class="menu-item active"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="/reports{{ query_param }}"   class="menu-item"><i class="fas fa-chart-pie"></i> Analytics</a>
+    <a href="/comms{{ query_param }}"     class="menu-item"><i class="fas fa-comments"></i> Comms</a>
+    <a href="/profile{{ query_param }}"   class="menu-item"><i class="fas fa-user"></i> Profile</a>
+
+    {% if user.role == 'admin' %}
+    <div style="margin:20px 0 8px;font-size:11px;color:var(--text-muted);letter-spacing:1px;">ADMIN TOOLS</div>
+    <a href="/dashboard" class="menu-item"><i class="fas fa-globe"></i> Global View</a>
+    {% for club in all_clubs %}
+    <a href="/dashboard?club_filter={{ club }}" class="menu-item"
+       style="font-size:13px;padding:10px 14px;">
+        <i class="fas fa-users"></i> {{ club[:22] }}
+    </a>
+    {% endfor %}
+    {% endif %}
+
+    <a href="/logout" class="menu-item logout" style="margin-top:auto;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+</nav>
+
+<!-- ── Main ──────────────────────────────────────────────────────────── -->
+<main class="main">
+    <header>
+        <div>
+            <div style="font-size:14px;color:var(--text-muted);">
+                Hi, {{ user.username|title }} 👋
+            </div>
+            <h1 style="font-size:24px;font-weight:700;">{{ current_view }} Overview</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:15px;">
+            <a href="/export_data{{ query_param }}" class="btn-primary"
+               style="padding:10px 18px;width:auto;text-decoration:none;font-size:13px;">
+                <i class="fas fa-file-csv"></i> Export CSV
+            </a>
+            <button class="theme-btn" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+            <a href="/profile{{ query_param }}">
+                <img src="{{ user.profile_pic }}" style="width:40px;height:40px;
+                     border-radius:50%;border:2px solid var(--primary);">
+            </a>
+        </div>
+    </header>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+        <div class="card">
+            <div class="card-label"><i class="fas fa-wallet" style="color:var(--primary);margin-right:5px;"></i> Net Earnings</div>
+            <div class="card-value">₹{{ "{:,.0f}".format(income) }}</div>
+            <div class="trend-up"><i class="fas fa-arrow-up"></i> Total income recorded</div>
+        </div>
+        <div class="card">
+            <div class="card-label"><i class="fas fa-chart-line" style="color:#05CD99;margin-right:5px;"></i> Event Success Rate</div>
+            <div class="card-value" style="color:#05CD99;">{{ success_rate }}%</div>
+            <div class="trend-up"><i class="fas fa-users"></i> Avg attendance rate</div>
+        </div>
+        <div class="card" style="background:linear-gradient(135deg,var(--primary),#a684ff);border:none;">
+            <div class="card-label" style="color:white;opacity:0.9;"><i class="fas fa-robot"></i> AI Revenue Forecast</div>
+            <div class="card-value" style="color:white;font-size:24px;">₹{{ "{:,.0f}".format(ai_forecast) }}</div>
+            <div style="color:white;font-size:12px;font-weight:bold;"><i class="fas fa-bolt"></i> Linear regression prediction</div>
+        </div>
+        <div class="card">
+            <div class="card-label"><i class="fas fa-ticket-alt" style="color:#FF5B5B;margin-right:5px;"></i> Pending Refunds</div>
+            <div class="card-value" style="color:#FF5B5B;">{{ refunds|length }}</div>
+            <div class="trend-down"><i class="fas fa-exclamation-circle"></i> Requires attention</div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="split" style="grid-template-columns:2fr 1fr;margin-bottom:20px;">
+        <div class="panel">
+            <h3>Revenue Trend</h3>
+            <canvas id="revenueChart" height="100"></canvas>
+        </div>
+        <div class="panel" style="display:flex;flex-direction:column;align-items:center;">
+            <h3>Payment Methods</h3>
+            <canvas id="payChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Tickets + Actions + Comms -->
+    <div class="split" style="grid-template-columns:2fr 1fr;margin-bottom:20px;">
+        <div>
+            <!-- Ticket Table -->
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>Live Ticket Sales</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Event</th><th>Buyer</th><th>Method</th>
+                            <th>Amount</th><th>Status</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% if tickets %}
+                        {% for t in tickets[:8] %}
+                        <tr>
+                            <td>{{ t.event_name[:30] }}</td>
+                            <td>{{ t.buyer_name }}</td>
+                            <td style="font-size:12px;color:var(--text-muted);">
+                                <i class="fas fa-wallet"></i> {{ t.payment_method }}
+                            </td>
+                            <td>₹{{ t.amount }}</td>
+                            <td>
+                                {% if t.status == 'Active' %}<span style="color:#05CD99;font-weight:bold;">Active</span>
+                                {% elif t.status == 'Refunded' %}<span style="color:gray;font-weight:bold;">Refunded</span>
+                                {% else %}<span style="color:#FFB547;font-weight:bold;">Requested</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if t.status == 'Active' %}
+                                <a href="/request_refund/{{ t.ticket_code }}"
+                                   style="color:#FF5B5B;font-size:11px;font-weight:bold;text-decoration:none;">
+                                    Refund
+                                </a>
+                                {% elif t.status == 'Refund Requested' and user.role in ['head','admin'] %}
+                                <a href="/process_refund/{{ t.ticket_code }}/approve"
+                                   style="background:#FF5B5B;color:white;padding:3px 8px;border-radius:4px;
+                                          font-size:11px;text-decoration:none;">Approve</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:30px;">
+                            No ticket sales yet.
+                        </td></tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Event Table -->
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>Recent Events</h3>
+                <table>
+                    <thead>
+                        <tr><th>Name</th><th>Club</th><th>Type</th><th>Amount</th><th>Date</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for e in events[:6] %}
+                    <tr>
+                        <td>{{ e.name[:30] }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ e.club }}</td>
+                        <td>
+                            {% if e.type == 'Income' %}<span style="color:#05CD99;font-weight:bold;">Income</span>
+                            {% else %}<span style="color:#FF5B5B;font-weight:bold;">Expense</span>{% endif %}
+                        </td>
+                        <td>₹{{ "{:,.0f}".format(e.amount) }}</td>
+                        <td style="font-size:12px;color:var(--text-muted);">{{ e.date }}</td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Audit Log -->
+            <div class="panel">
+                <h3><i class="fas fa-shield-alt" style="color:var(--primary);"></i> System Activity Log</h3>
+                <div class="timeline">
+                {% for log in audit_logs %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon {{ log.category }}"></div>
+                        <div class="timeline-content">{{ log.action }}</div>
+                        <div class="timeline-time">{{ log.timestamp.strftime('%d %b %Y, %H:%M') }}</div>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: admin forms + chat -->
+        <div>
+            {% if user.role == 'admin' %}
+            <!-- Launch Event -->
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>🚀 Launch Event</h3>
+                <form method="POST" id="launchForm">
+                    <input type="hidden" name="launch_event" value="1">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <input type="text"   name="name"   placeholder="Event Name" required style="grid-column:span 2;">
+                        <select name="type">
+                            <option value="Income">Income (Revenue)</option>
+                            <option value="Expense">Expense (Cost)</option>
+                        </select>
+                        <input type="number" name="amount"  placeholder="₹ Amount"  required min="0">
+                        <input type="number" name="tickets" placeholder="Target Tickets" required min="0">
+                        <input type="number" name="students" placeholder="Target Participants" required min="0">
+                        <select name="target_club" required style="grid-column:span 2;">
+                            <option value="" disabled selected>Select Club…</option>
+                            {% for c in all_clubs %}
+                            <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="btn-primary" style="grid-column:span 2;">Launch Event</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Add Club Head -->
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>👑 Add Club Head</h3>
+                <form action="/add_club" method="POST">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <input type="text"     name="club_name" placeholder="Club Name" required style="grid-column:span 2;">
+                        <input type="text"     name="username"  placeholder="Username"  required>
+                        <input type="password" name="password"  placeholder="Password"  required>
+                        <button class="btn-primary" style="grid-column:span 2;background:var(--primary);">Create Account</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+            <!-- Buy Ticket -->
+            <div class="panel" style="margin-bottom:20px;">
+                <h3>🎟️ Buy Ticket</h3>
+                <form id="buyTicketForm" method="POST" novalidate>
+                    <input type="hidden" name="buy_ticket" value="1">
+                    <select name="event_id" id="eventSelector" required>
+                        <option value="" disabled selected>Select Event…</option>
+                        {% for e in active_events %}
+                        <option value="{{ e.id }}" data-amount="{{ e.amount }}">
+                            {{ e.name[:28] }} — ₹{{ e.amount }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" name="buyer_name" placeholder="Student Full Name" required
+                           pattern=".{3,}" title="Name must be at least 3 characters">
+                    <select name="payment_method" id="paymentSelector">
+                        <option value="UPI">UPI / GPay</option>
+                        <option value="Card">Credit/Debit Card</option>
+                        <option value="Cash">Cash at Desk</option>
+                    </select>
+                    <button type="button" onclick="handlePayment()"
+                            class="btn-primary" style="background:#05CD99;margin-top:5px;">
+                        <i class="fas fa-qrcode"></i> Process Payment
+                    </button>
+                </form>
+            </div>
+
+            <!-- Recent Comms -->
+            <div class="panel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h3 style="margin:0;font-size:16px;">
+                        <i class="fas fa-comments" style="color:var(--primary);"></i> Recent Comms
+                    </h3>
+                </div>
+                <div style="background:var(--bg-body);border-radius:10px;padding:12px;
+                            max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+                    {% for msg in messages %}
+                    <div style="background:var(--bg-card);padding:10px 14px;border-radius:10px;
+                                border:1px solid var(--border);">
+                        <div style="font-size:11px;color:var(--text-muted);display:flex;
+                                    justify-content:space-between;margin-bottom:4px;">
+                            <strong style="color:var(--text-main);">{{ msg.sender|title }}</strong>
+                            <span>{{ msg.timestamp.strftime('%H:%M') }}</span>
+                        </div>
+                        <div style="font-size:13px;">{{ msg.text }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <a href="/comms{{ query_param }}" class="btn-primary"
+                   style="display:block;text-align:center;text-decoration:none;margin-top:12px;
+                          background:var(--bg-body);color:var(--primary);border:1px solid var(--primary);">
+                    Open Full Channel
+                </a>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    /* ── Theme ── */
+    function toggleTheme() {
+        const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", t);
+        localStorage.setItem('theme', t);
+    }
+    document.documentElement.setAttribute("data-theme", localStorage.getItem('theme') || 'light');
+
+    /* ── Charts ── */
+    new Chart(document.getElementById('revenueChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels | tojson }},
+            datasets: [{
+                label: 'Income (₹)',
+                data: {{ chart_values | tojson }},
+                borderColor: '#4318FF',
+                backgroundColor: 'rgba(67,24,255,0.1)',
+                borderWidth: 2, fill: true, tension: 0.4,
+                pointBackgroundColor: '#4318FF', pointRadius: 4,
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    new Chart(document.getElementById('payChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ pay_labels | tojson }},
+            datasets: [{
+                data: {{ pay_data | tojson }},
+                backgroundColor: ['#4318FF', '#05CD99', '#FFB547'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#A3AED0', font: { size: 11 } } }
+            }
+        }
+    });
+
+    /* ── UPI Modal ── */
+    function handlePayment() {
+        const form = document.getElementById('buyTicketForm');
+        const buyerName = form.querySelector('[name="buyer_name"]').value.trim();
+        const eventSel  = document.getElementById('eventSelector');
+
+        if (!eventSel.value) { alert('Please select an event.'); return; }
+        if (buyerName.length < 3) { alert('Please enter a valid student name (min 3 chars).'); return; }
+
+        const method = document.getElementById('paymentSelector').value;
+        if (method === 'UPI') {
+            const amount = eventSel.options[eventSel.selectedIndex].dataset.amount;
+            document.getElementById('upiAmountBadge').textContent = '₹' + amount;
+            document.getElementById('upiModal').style.display = 'flex';
+        } else {
+            form.submit();
+        }
+    }
+
+    function submitTicketForm() {
+        document.getElementById('upiModal').style.display = 'none';
+        document.getElementById('buyTicketForm').submit();
+    }
+
+    function closeUPI() {
+        document.getElementById('upiModal').style.display = 'none';
+    }
+</script>
+</body>
+</html>

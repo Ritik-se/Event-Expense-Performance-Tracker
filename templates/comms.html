@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Comms | EventIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="sidebar">
+    <div class="brand"><i class="fas fa-bolt" style="color:var(--primary);"></i> EventIQ</div>
+    <a href="/dashboard{{ query_param }}" class="menu-item"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="/reports{{ query_param }}"   class="menu-item"><i class="fas fa-chart-pie"></i> Analytics</a>
+    <a href="/comms{{ query_param }}"     class="menu-item active"><i class="fas fa-comments"></i> Comms</a>
+    <a href="/profile{{ query_param }}"   class="menu-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="/logout" class="menu-item logout" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</nav>
+
+<main class="main" style="display:flex;flex-direction:column;height:100vh;padding-bottom:0;">
+    <header>
+        <div>
+            <div style="font-size:14px;color:var(--text-muted);">Team Collaboration</div>
+            <h1 style="font-size:24px;font-weight:700;">Global Comms Channel</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:15px;">
+            <div id="onlineIndicator" style="font-size:12px;color:#05CD99;font-weight:bold;">
+                <i class="fas fa-circle"></i> Live
+            </div>
+            <button class="theme-btn" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+            <a href="/profile{{ query_param }}">
+                <img src="{{ user.profile_pic }}" style="width:40px;height:40px;
+                     border-radius:50%;border:2px solid var(--primary);">
+            </a>
+        </div>
+    </header>
+
+    <div class="split" style="grid-template-columns:3fr 1fr;flex:1;overflow:hidden;margin-bottom:20px;">
+        <!-- Chat Panel -->
+        <div class="panel" style="display:flex;flex-direction:column;height:100%;
+             margin-bottom:0;padding:0;overflow:hidden;">
+            <!-- Channel Header -->
+            <div style="padding:18px 22px;border-bottom:1px solid var(--border);
+                        background:var(--bg-card);display:flex;justify-content:space-between;align-items:center;">
+                <h3 style="margin:0;"><i class="fas fa-hashtag" style="color:var(--text-muted);"></i> medi-caps-planning</h3>
+                <span style="font-size:12px;color:var(--text-muted);" id="msgCount"></span>
+            </div>
+
+            <!-- Message Feed -->
+            <div id="chatBox" style="flex:1;overflow-y:auto;padding:20px;
+                 background:var(--bg-body);display:flex;flex-direction:column;gap:14px;">
+                {% for msg in messages %}
+                <div class="chat-msg" style="display:flex;flex-direction:column;
+                     align-items:{% if msg.sender == user.username %}flex-end{% else %}flex-start{% endif %};"
+                     data-id="{{ msg.id }}">
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                        {% if msg.role == 'admin' %}
+                        <i class="fas fa-shield-alt" style="color:var(--primary);"></i>
+                        {% endif %}
+                        {{ msg.sender|title }} • {{ msg.timestamp.strftime('%H:%M') }}
+                    </div>
+                    <div style="background:{% if msg.sender == user.username %}var(--primary){% else %}var(--bg-card){% endif %};
+                                color:{% if msg.sender == user.username %}white{% else %}var(--text-main){% endif %};
+                                padding:11px 16px;border-radius:14px;
+                                border:1px solid {% if msg.sender == user.username %}var(--primary){% else %}var(--border){% endif %};
+                                max-width:72%;box-shadow:var(--shadow);">
+                        {{ msg.text }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Input Bar -->
+            <div style="padding:18px 20px;background:var(--bg-card);border-top:1px solid var(--border);">
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="msgInput"
+                           placeholder="Message #medi-caps-planning…"
+                           style="flex:1;padding:14px;border-radius:12px;border:1px solid var(--border);
+                                  margin:0;background:var(--bg-body);color:var(--text-main);"
+                           onkeydown="if(event.key==='Enter' && !event.shiftKey){sendMessage();event.preventDefault();}">
+                    <button onclick="sendMessage()" class="btn-primary"
+                            style="width:auto;padding:14px 22px;border-radius:12px;">
+                        <i class="fas fa-paper-plane"></i> Send
+                    </button>
+                </div>
+                <div id="typingIndicator" style="font-size:11px;color:var(--text-muted);margin-top:6px;min-height:16px;"></div>
+            </div>
+        </div>
+
+        <!-- Directory Panel -->
+        <div class="panel" style="height:100%;overflow-y:auto;margin-bottom:0;">
+            <h3 style="font-size:13px;color:var(--text-muted);margin-bottom:18px;letter-spacing:1px;">
+                SYSTEM DIRECTORY
+            </h3>
+            <div style="display:flex;flex-direction:column;gap:14px;">
+                {% for u in users_list %}
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="position:relative;">
+                        <div style="width:34px;height:34px;border-radius:50%;background:var(--primary);
+                                    display:flex;justify-content:center;align-items:center;
+                                    font-weight:bold;color:white;font-size:14px;">
+                            {{ u.username[0]|upper }}
+                        </div>
+                        <div style="position:absolute;bottom:0;right:0;width:9px;height:9px;
+                                    background:#05CD99;border-radius:50%;border:2px solid var(--bg-card);"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:13px;font-weight:bold;">{{ u.username|title }}</div>
+                        <div style="font-size:11px;color:var(--text-muted);">
+                            {{ u.club[:20] }}{% if u.role == 'admin' %} (Admin){% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    function toggleTheme() {
+        const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", t);
+        localStorage.setItem('theme', t);
+    }
+    document.documentElement.setAttribute("data-theme", localStorage.getItem('theme') || 'light');
+
+    const ME = "{{ user.username }}";
+    const IS_ADMIN = "{{ user.role }}" === "admin";
+    let lastId = {{ messages[-1].id if messages else 0 }};
+    const chatBox = document.getElementById('chatBox');
+
+    function scrollBottom() {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    scrollBottom();
+
+    function renderMsg(msg) {
+        const isMe = msg.sender === ME;
+        const div = document.createElement('div');
+        div.className = 'chat-msg';
+        div.dataset.id = msg.id;
+        div.style.cssText = `display:flex;flex-direction:column;align-items:${isMe ? 'flex-end' : 'flex-start'};`;
+        div.innerHTML = `
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">
+                ${msg.role === 'admin' ? '<i class="fas fa-shield-alt" style="color:var(--primary);"></i> ' : ''}
+                ${msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1)} • ${msg.timestamp}
+            </div>
+            <div style="background:${isMe ? 'var(--primary)' : 'var(--bg-card)'};
+                        color:${isMe ? 'white' : 'var(--text-main)'};
+                        padding:11px 16px;border-radius:14px;
+                        border:1px solid ${isMe ? 'var(--primary)' : 'var(--border)'};
+                        max-width:72%;box-shadow:var(--shadow);">
+                ${escapeHtml(msg.text)}
+            </div>`;
+        chatBox.appendChild(div);
+    }
+
+    function escapeHtml(t) {
+        return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('msgInput');
+        const text  = input.value.trim();
+        if (!text) return;
+        input.value = '';
+
+        try {
+            const res = await fetch('/api/messages', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            if (!res.ok) throw new Error('Send failed');
+        } catch (e) {
+            alert('Could not send message. Please try again.');
+        }
+        await pollMessages();
+    }
+
+    async function pollMessages() {
+        try {
+            const res = await fetch(`/api/messages?after=${lastId}`);
+            const msgs = await res.json();
+            if (msgs.length) {
+                msgs.forEach(m => {
+                    if (m.id > lastId) {
+                        renderMsg(m);
+                        lastId = m.id;
+                    }
+                });
+                scrollBottom();
+                updateCount();
+            }
+        } catch (e) {
+            // silent fail — network might be briefly unavailable
+        }
+    }
+
+    function updateCount() {
+        const count = chatBox.querySelectorAll('.chat-msg').length;
+        document.getElementById('msgCount').textContent = count + ' messages';
+    }
+
+    updateCount();
+    setInterval(pollMessages, 3000);   // Poll every 3 seconds
+</script>
+</body>
+</html>

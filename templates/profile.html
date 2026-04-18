@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Profile | EventIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="sidebar">
+    <div class="brand"><i class="fas fa-bolt" style="color:var(--primary);"></i> EventIQ</div>
+    <a href="/dashboard{{ query_param }}" class="menu-item"><i class="fas fa-arrow-left"></i> Dashboard</a>
+    <a href="/comms{{ query_param }}"     class="menu-item"><i class="fas fa-comments"></i> Comms</a>
+    <a href="/reports{{ query_param }}"   class="menu-item"><i class="fas fa-chart-pie"></i> Analytics</a>
+    <a href="/logout" class="menu-item logout" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</nav>
+
+<main class="main">
+    <div class="panel" style="padding:0;overflow:hidden;max-width:820px;margin:0 auto;">
+        <div class="profile-header">
+            <img src="{{ user.profile_pic }}" class="profile-pic-big"
+                 onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'">
+        </div>
+        <div style="margin-top:60px;padding:0 40px 40px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div>
+                    <h1 style="font-size:26px;margin-bottom:4px;">{{ user.username|title }}</h1>
+                    <p style="color:var(--text-muted);font-size:15px;">
+                        {{ user.position }} • {{ user.club }}
+                    </p>
+                    <p style="color:var(--text-muted);font-size:13px;margin-top:6px;">
+                        <i class="fas fa-envelope"></i> {{ user.email or '—' }}
+                        &nbsp;&nbsp;
+                        <i class="fas fa-phone"></i> {{ user.phone or '—' }}
+                    </p>
+                </div>
+                {% if user.linkedin %}
+                <a href="{% if user.linkedin.startswith('http') %}{{ user.linkedin }}{% else %}https://{{ user.linkedin }}{% endif %}"
+                   target="_blank" style="font-size:26px;color:#0077b5;">
+                    <i class="fab fa-linkedin"></i>
+                </a>
+                {% endif %}
+            </div>
+
+            {% if user.bio %}
+            <div style="margin:16px 0;background:var(--bg-body);padding:14px;border-radius:10px;
+                        font-size:14px;color:var(--text-muted);line-height:1.6;">
+                {{ user.bio }}
+            </div>
+            {% endif %}
+
+            <hr style="margin:20px 0;border:0;border-top:1px solid var(--border);">
+
+            <form method="POST">
+                <h3 style="margin-bottom:20px;">Edit Profile</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+                    <div>
+                        <label style="font-size:12px;color:var(--text-muted);font-weight:bold;display:block;margin-bottom:4px;">
+                            Professional Role
+                        </label>
+                        <input type="text" name="position" value="{{ user.position }}">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-muted);font-weight:bold;display:block;margin-bottom:4px;">
+                            LinkedIn URL
+                        </label>
+                        <input type="text" name="linkedin" value="{{ user.linkedin or '' }}"
+                               placeholder="https://linkedin.com/in/your-profile">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-muted);font-weight:bold;display:block;margin-bottom:4px;">
+                            Email
+                        </label>
+                        <input type="email" name="email" value="{{ user.email or '' }}">
+                    </div>
+                    <div>
+                        <label style="font-size:12px;color:var(--text-muted);font-weight:bold;display:block;margin-bottom:4px;">
+                            Phone
+                        </label>
+                        <input type="tel" name="phone" value="{{ user.phone or '' }}" placeholder="+91 XXXXX XXXXX">
+                    </div>
+                </div>
+                <label style="font-size:12px;color:var(--text-muted);font-weight:bold;
+                              display:block;margin:14px 0 4px;">Short Bio</label>
+                <textarea name="bio" rows="3"
+                          style="width:100%;padding:12px;border-radius:10px;
+                                 border:1px solid var(--border);background:var(--bg-body);
+                                 color:var(--text-main);resize:vertical;">{{ user.bio or '' }}</textarea>
+                <button class="btn-primary" style="margin-top:20px;width:auto;padding:12px 30px;">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+</main>
+<script>document.documentElement.setAttribute("data-theme", localStorage.getItem('theme') || 'light');</script>
+</body>
+</html>

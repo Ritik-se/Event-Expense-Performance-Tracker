@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Verification | EventIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { margin:0; padding:0; font-family:'DM Sans',sans-serif; background:#F4F7FE;
+               display:flex; justify-content:center; align-items:center; min-height:100vh; }
+        .card { background:white; padding:40px; border-radius:20px;
+                box-shadow:0 18px 40px rgba(112,144,176,0.15);
+                text-align:center; max-width:420px; width:90%; }
+        .icon-ok   { color:#05CD99; font-size:64px; margin-bottom:20px; }
+        .icon-warn { color:#FFB547; font-size:64px; margin-bottom:20px; }
+        .icon-fail { color:#FF5B5B; font-size:64px; margin-bottom:20px; }
+        h1   { color:#2B3674; margin-bottom:10px; font-size:24px; }
+        .lbl { color:#A3AED0; font-size:13px; margin-bottom:3px; }
+        .val { color:#2B3674; font-weight:700; font-size:15px; margin-bottom:14px; }
+        .badge { padding:8px 18px; border-radius:8px; font-weight:bold;
+                 display:inline-block; margin-top:10px; }
+        .btn { display:block; margin-top:22px; color:#4318FF;
+               text-decoration:none; font-weight:bold; font-size:14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        {% if ticket %}
+            {% if ticket.status == 'Refunded' %}
+                <i class="fas fa-exclamation-triangle icon-warn"></i>
+                <h1>Ticket Void</h1>
+                <p style="color:#A3AED0;font-size:14px;margin-bottom:20px;">
+                    This ticket was refunded and is no longer valid for entry.
+                </p>
+                <div class="lbl">Ticket ID</div>
+                <div class="val" style="font-family:monospace;">{{ ticket.ticket_code }}</div>
+                <div class="badge" style="background:rgba(255,181,71,0.1);color:#FFB547;">Refunded — Invalid</div>
+
+            {% else %}
+                <i class="fas fa-check-circle icon-ok"></i>
+                <h1>Ticket Verified ✓</h1>
+                <div class="lbl">Event Name</div>
+                <div class="val">{{ ticket.event_name }}</div>
+                <div class="lbl">Attendee Name</div>
+                <div class="val">{{ ticket.buyer_name }}</div>
+                <div class="lbl">Payment Method</div>
+                <div class="val">{{ ticket.payment_method }}</div>
+                <div class="lbl">Ticket ID</div>
+                <div class="val" style="font-family:monospace;font-size:13px;">{{ ticket.ticket_code }}</div>
+                <div class="lbl">Purchased On</div>
+                <div class="val" style="font-size:13px;">
+                    {{ ticket.purchase_date.strftime('%d %b %Y, %H:%M') }}
+                </div>
+                <div class="badge" style="background:rgba(5,205,153,0.1);color:#05CD99;">
+                    <i class="fas fa-check"></i> Valid Entry
+                </div>
+            {% endif %}
+        {% else %}
+            <i class="fas fa-times-circle icon-fail"></i>
+            <h1>Invalid Ticket</h1>
+            <p style="color:#A3AED0;font-size:14px;">
+                This ticket code does not exist in our system.
+            </p>
+            <div class="badge" style="background:rgba(255,91,91,0.1);color:#FF5B5B;">
+                Not Found
+            </div>
+        {% endif %}
+        <a href="/dashboard" class="btn">
+            <i class="fas fa-arrow-left"></i> Return to Dashboard
+        </a>
+    </div>
+</body>
+</html>

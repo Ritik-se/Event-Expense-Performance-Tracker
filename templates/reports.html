@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Analytics | EventIQ</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="sidebar">
+    <div class="brand"><i class="fas fa-bolt" style="color:var(--primary);"></i> EventIQ</div>
+    <a href="/dashboard{{ query_param }}" class="menu-item"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="/reports{{ query_param }}"   class="menu-item active"><i class="fas fa-chart-pie"></i> Analytics</a>
+    <a href="/comms{{ query_param }}"     class="menu-item"><i class="fas fa-comments"></i> Comms</a>
+    <a href="/profile{{ query_param }}"   class="menu-item"><i class="fas fa-user"></i> Profile</a>
+    <a href="/logout" class="menu-item logout" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+</nav>
+
+<main class="main">
+    <header>
+        <div>
+            <div style="font-size:14px;color:var(--text-muted);">Business Intelligence</div>
+            <h1 style="font-size:24px;font-weight:700;">{{ current_view }} — Deep Analytics</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:15px;">
+            <a href="/export_data{{ query_param }}" class="btn-primary"
+               style="padding:10px 18px;width:auto;text-decoration:none;font-size:13px;">
+                <i class="fas fa-file-csv"></i> Export CSV
+            </a>
+            <button class="theme-btn" onclick="toggleTheme()"><i class="fas fa-moon"></i></button>
+            <a href="/profile{{ query_param }}">
+                <img src="{{ user.profile_pic }}" style="width:40px;height:40px;
+                     border-radius:50%;border:2px solid var(--primary);">
+            </a>
+        </div>
+    </header>
+
+    <!-- KPI Row -->
+    <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:25px;">
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div class="card-label">Total Tickets Sold</div>
+                <div class="card-value" style="color:#05CD99;">{{ total_tickets }}</div>
+            </div>
+            <i class="fas fa-ticket-alt" style="font-size:40px;color:rgba(5,205,153,0.2);"></i>
+        </div>
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div class="card-label">Total Participation</div>
+                <div class="card-value" style="color:var(--primary);">{{ total_participation }}</div>
+            </div>
+            <i class="fas fa-users" style="font-size:40px;color:rgba(67,24,255,0.2);"></i>
+        </div>
+        <div class="card" style="background:linear-gradient(135deg,var(--primary),#a684ff);border:none;">
+            <div class="card-label" style="color:white;opacity:0.9;">
+                <i class="fas fa-robot"></i> AI Next-Event Forecast
+            </div>
+            <div class="card-value" style="color:white;font-size:24px;">
+                ₹{{ "{:,.0f}".format(ai_forecast) }}
+            </div>
+            <div style="color:white;font-size:12px;font-weight:bold;">
+                <i class="fas fa-chart-line"></i> Linear regression model
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashflow + Top Events -->
+    <div class="split" style="grid-template-columns:1fr 1fr;margin-bottom:20px;">
+        <div class="panel">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h3 style="margin:0;">6-Month Cashflow</h3>
+                <span style="font-size:12px;color:var(--text-muted);">
+                    <i class="fas fa-circle" style="color:#05CD99;"></i> Income &nbsp;
+                    <i class="fas fa-circle" style="color:#FF5B5B;"></i> Expense
+                </span>
+            </div>
+            <canvas id="cashflowChart" height="200"></canvas>
+        </div>
+        <div class="panel">
+            <h3>Top Events by Participation</h3>
+            <canvas id="topEventsChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Payment Doughnut + Club Radar -->
+    <div class="split" style="grid-template-columns:1fr 1fr;margin-bottom:20px;">
+        <div class="panel" style="display:flex;flex-direction:column;align-items:center;">
+            <h3>Payment Gateway Distribution</h3>
+            <canvas id="payChart" style="max-height:260px;"></canvas>
+        </div>
+        <div class="panel" style="display:flex;flex-direction:column;align-items:center;">
+            <h3>Club Engagement Radar</h3>
+            <canvas id="radarChart" style="max-height:260px;"></canvas>
+        </div>
+    </div>
+
+    <!-- AI Trend Line Panel -->
+    <div class="panel" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <div>
+                <h3 style="margin:0;">Predictive AI Revenue Model</h3>
+                <p style="color:var(--text-muted);font-size:13px;margin-top:4px;">
+                    NumPy linear regression fitted on historical income data
+                </p>
+            </div>
+            <div style="background:rgba(67,24,255,0.1);color:var(--primary);
+                        padding:8px 16px;border-radius:10px;font-weight:700;font-size:14px;">
+                Next Forecast: ₹{{ "{:,.0f}".format(ai_forecast) }}
+            </div>
+        </div>
+        <canvas id="trendChart" height="100"></canvas>
+    </div>
+</main>
+
+<script>
+    function toggleTheme() {
+        const t = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", t);
+        localStorage.setItem('theme', t);
+    }
+    document.documentElement.setAttribute("data-theme", localStorage.getItem('theme') || 'light');
+
+    // -- Cashflow Bar Chart --
+    new Chart(document.getElementById('cashflowChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: {{ cf_labels | tojson }},
+            datasets: [
+                { label: 'Income (₹)',  data: {{ cf_income  | tojson }}, backgroundColor: '#05CD99', borderRadius: 5 },
+                { label: 'Expense (₹)', data: {{ cf_expense | tojson }}, backgroundColor: '#FF5B5B', borderRadius: 5 },
+            ]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    // -- Top Events Horizontal Bar --
+    new Chart(document.getElementById('topEventsChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: {{ te_labels | tojson }},
+            datasets: [{
+                label: 'Attendees',
+                data: {{ te_data | tojson }},
+                backgroundColor: '#4318FF',
+                borderRadius: 5,
+            }]
+        },
+        options: { indexAxis: 'y', responsive: true, scales: { x: { beginAtZero: true } } }
+    });
+
+    // -- Payment Doughnut --
+    new Chart(document.getElementById('payChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ pay_labels | tojson }},
+            datasets: [{
+                data: {{ pay_data | tojson }},
+                backgroundColor: ['#4318FF', '#05CD99', '#FFB547'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom', labels: { color: '#A3AED0' } } }
+        }
+    });
+
+    // -- Club Radar --
+    new Chart(document.getElementById('radarChart').getContext('2d'), {
+        type: 'polarArea',
+        data: {
+            labels: {{ radar_labels | tojson }},
+            datasets: [{
+                label: 'Total Participation',
+                data: {{ radar_data | tojson }},
+                backgroundColor: [
+                    'rgba(67,24,255,0.55)', 'rgba(5,205,153,0.55)',
+                    'rgba(255,91,91,0.55)', 'rgba(255,181,71,0.55)'
+                ],
+            }]
+        },
+        options: { responsive: true }
+    });
+
+    // -- AI Trend Line --
+    const cfLabels = {{ cf_labels | tojson }};
+    const cfIncome = {{ cf_income | tojson }};
+    const trendLine = {{ trend_line | tojson }};
+
+    new Chart(document.getElementById('trendChart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: cfLabels,
+            datasets: [
+                {
+                    label: 'Actual Income (₹)',
+                    data: cfIncome,
+                    borderColor: '#4318FF',
+                    backgroundColor: 'rgba(67,24,255,0.1)',
+                    borderWidth: 2, fill: true, tension: 0.4, pointRadius: 5,
+                },
+                {
+                    label: 'AI Trend Line',
+                    data: trendLine,
+                    borderColor: '#FF5B5B',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2, borderDash: [6,4],
+                    pointRadius: 0,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: { y: { beginAtZero: true } },
+            plugins: {
+                legend: { position: 'top', labels: { color: '#A3AED0' } }
+            }
+        }
+    });
+</script>
+</body>
+</html>
